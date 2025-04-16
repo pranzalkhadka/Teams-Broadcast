@@ -1,0 +1,17 @@
+{
+  "webchat:9IbXmWBOstQLUSu2bUBYfO-in": {
+    "activity_id": "Fc1ZS5ct6K4",
+    "user": {
+      "id": "374ece1e-8212-4788-9627-ef05c9ceff4b"
+    },
+    "bot": {
+      "id": "teams-bot-pranjal@6AVo2R2A51S0fhpXQgybwnIL07Fuf0wwG50aH4Wc5mIfxhCFVaVGJQQJ99BCACL93NaAArohAAABAZBS3Phr",
+      "name": "Sarah Wilson"
+    },
+    "conversation": {
+      "id": "9IbXmWBOstQLUSu2bUBYfO-in"
+    },
+    "channel_id": "webchat",
+    "service_url": "https://webchat.botframework.com/"
+  }
+}

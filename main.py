@@ -62,7 +62,6 @@ ADAPTIVE_CARD = {
 }
 
 CONVERSATION_REFERENCES = {}
-
 REFS_FILE = "conversation_references.json"
 
 def load_conversation_references():
@@ -72,10 +71,14 @@ def load_conversation_references():
         if os.path.exists(REFS_FILE):
             with open(REFS_FILE, 'r') as f:
                 data = json.load(f)
-                CONVERSATION_REFERENCES = {
-                    key: ConversationReference(**val) for key, val in data.items()
-                }
-                print(f"Loaded {len(CONVERSATION_REFERENCES)} conversation references")
+                valid_refs = {}
+                for key, val in data.items():
+                    if key.startswith("msteams:") and val.get('conversation') and val['conversation'].get('id'):
+                        valid_refs[key] = ConversationReference(**val)
+                    else:
+                        print(f"Skipping invalid or non-Teams reference {key}")
+                CONVERSATION_REFERENCES = valid_refs
+                print(f"Loaded {len(CONVERSATION_REFERENCES)} valid conversation references")
     except Exception as e:
         print(f"Error loading conversation references: {str(e)}")
 
@@ -166,6 +169,10 @@ async def send_adaptive_card():
 
     results = []
     for key, ref in CONVERSATION_REFERENCES.items():
+        if not ref.conversation or not ref.conversation.id:
+            print(f"Skipping invalid conversation reference {key}: missing conversation.id")
+            results.append({"conversation": key, "status": "error", "message": "Invalid conversation.id"})
+            continue
         print(f"Sending Adaptive Card to conversation: {key}")
         activity = Activity(
             type=ActivityTypes.message,
@@ -195,31 +202,15 @@ async def send_adaptive_card():
 
     return {"status": "completed", "results": results}
 
-# async def on_turn(turn_context: TurnContext):
-#     activity = turn_context.activity
-
-#     global CONVERSATION_REFERENCES
-#     conversation_key = f"{activity.channel_id}:{activity.conversation.id}"
-#     if conversation_key not in CONVERSATION_REFERENCES and activity.channel_id == "msteams":
-#         CONVERSATION_REFERENCES[conversation_key] = ConversationReference(
-#             activity_id=activity.id,
-#             user=activity.from_property,
-#             bot=activity.recipient,
-#             conversation=activity.conversation,
-#             channel_id=activity.channel_id,
-#             service_url=activity.service_url
-#         )
-#         print(f"Stored conversation reference for {conversation_key}")
-#         save_conversation_references()
-
-
 async def on_turn(turn_context: TurnContext):
     activity = turn_context.activity
-    print(f"Received activity: type={activity.type}, channel_id={activity.channel_id}, conversation_id={activity.conversation.id}")
+    if not activity.conversation or not activity.conversation.id:
+        print(f"Skipping invalid activity: channel_id={activity.channel_id}, no conversation.id")
+        return
 
     global CONVERSATION_REFERENCES
     conversation_key = f"{activity.channel_id}:{activity.conversation.id}"
-    if activity.channel_id in ["msteams", "webchat"]:
+    if activity.channel_id == "msteams":
         if conversation_key not in CONVERSATION_REFERENCES or CONVERSATION_REFERENCES[conversation_key].service_url != activity.service_url:
             CONVERSATION_REFERENCES[conversation_key] = ConversationReference(
                 activity_id=activity.id,
@@ -270,4 +261,5 @@ async def send_card():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
